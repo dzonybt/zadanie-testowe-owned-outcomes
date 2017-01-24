@@ -1,0 +1,68 @@
+version: '2'
+
+services:  
+  # PostgreSQL database
+  db:
+    image: postgres:9.4
+    hostname: db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+
+  # RabbitMQ
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:3.6.0-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=mypass
+    ports:
+      - "5672:5672"  # we forward this port because it's useful for debugging
+      - "15672:15672"  # here, we can access rabbitmq management plugin
+
+  # Django web server
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: web
+    command: ./run_web.sh
+    volumes:
+      - .:/code  # mount current directory inside container
+    ports:
+      - "8000:8000"
+    # set up links so that web knows about and rabbit
+    links:
+      - db
+      - rabbit
+    depends_on:
+      - db
+
+  # Celery worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ./run_celery.sh
+    volumes:
+      - .:/code
+    links:
+      - db
+      - rabbit
+    depends_on:
+      - rabbit
+
+  # Flower
+  flower:
+    image: iserko/docker-celery-flower
+    environment:
+      - CELERY_BROKER_URL=amqp://admin:mypass@172.21.0.3:5672/
+    ports:
+      - "5555:5555"
+    links:
+      - rabbit
+    depends_on:
+      - db
