@@ -21,8 +21,19 @@ class Frase(models.Model):
         super(Frase, self).save(*args, **kwargs)
         if self.status == 'pending':
             from .tasks import crawler
-            for start_page in xrange(0, 10 * self.pages, 10):
-                crawler.delay(job_id=self.id, frase=self.frase, start_page=start_page)
+
+            pages_to_crawl = []
+
+            for i in xrange(0, 10 * self.pages, 10):
+                pages_to_crawl.append(i)
+                if len(pages_to_crawl) == 10:
+                    self._create_task(crawler, pages_to_crawl)
+                    del pages_to_crawl[:]
+
+            self._create_task(crawler, pages_to_crawl)
+
+    def _create_task(self, crawler, pages):
+        crawler.apply(job_id=self.id, frase=self.frase, pages=pages)
 
 
 class Url(models.Model):

@@ -37,7 +37,6 @@ INSTALLED_APPS = (
     'rest_framework',
     'projekt_django',
     'suit',
-    #'django.contrib.sites',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

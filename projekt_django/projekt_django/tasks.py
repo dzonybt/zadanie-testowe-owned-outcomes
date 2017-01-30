@@ -1,3 +1,4 @@
+import time
 from functools import wraps
 
 import requests
@@ -19,7 +20,6 @@ def update_job(fn):
             for result in results:
                 url = Url.objects.create(frase_key=job, url=result)
                 url.save()
-
             if job.status != 'failed':
                 job.status = 'finished'
             job.save()
@@ -30,15 +30,20 @@ def update_job(fn):
 
 @app.task
 @update_job
-def crawler(frase, start_page):  
+def crawler(frase, pages):  
     url = 'https://www.google.com/search'
-    query = {'q': frase, 'start': start_page}
-    page = requests.get(url, params=query)
-    soup = BeautifulSoup(page.content)
-    links = soup.select("h3.r a")
-
     result = []
-    for link in links:
-        result.append(link['href'].replace('/url?q=', '').split('&sa=')[0])
+    query = {'q': frase}
+
+    for start in pages:
+        query['start'] = start
+        page = requests.get(url, params=query)
+        soup = BeautifulSoup(page.content)
+        links = soup.select("h3.r a")
+
+        for link in links:
+            result.append(link['href'].replace('/url?q=', '').split('&sa=')[0])
+        
+        time.sleep(1)
 
     return result
